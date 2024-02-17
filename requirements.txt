@@ -6,4 +6,6 @@ plotly
 sweetviz
 ReportLab
 matplotlib
+matplotlib.backends.backend_agg
+streamlit_option_menu
 streamlit
