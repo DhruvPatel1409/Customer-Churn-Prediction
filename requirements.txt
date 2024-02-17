@@ -2,7 +2,6 @@ scikit-learn
 seaborn
 numpy 
 pandas
-io
 plotly
 sweetviz
 ReportLab
