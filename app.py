@@ -7,6 +7,8 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 from streamlit_option_menu import option_menu
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc
+from sklearn.model_selection import train_test_split
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 import sweetviz as sv
@@ -17,9 +19,12 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 model = pickle.load(open('pipe_model.sav', 'rb'))
 
 with st.sidebar:
-    selected = option_menu('Navigation',['About','Predict','Analysis','Report'],icons=["bi-info-circle","bi-bullseye","bi-clipboard-data","bi-file-pdf"] , default_index = 0)
+    selected = option_menu('Navigation',['About','Predict','Model','Analysis','Feedback','Report'],icons=["bi-info-circle","bi-bullseye","bi-bar-chart-fill","bi-clipboard-data","bi-textarea-resize","bi-file-pdf"] , default_index = 0)
 
 df = pd.read_csv('Churn_Modelling.csv')
+X = df.drop(columns=['Exited'])
+Y = df['Exited']
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
 analysis_results = []
 
@@ -37,6 +42,33 @@ def generate_pdf_report(analysis_results, graphs):
 
     st.success(f"PDF Report generated successfully: [{pdf_filename}]")
     st.download_button(label="Download PDF Report", data=pdf_filename, file_name=pdf_filename, mime="application/pdf")
+
+def model_evaluation(X_test, Y_test):
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(Y_test, y_pred)
+    classification_rep = classification_report(Y_test, y_pred)
+    confusion_mat = confusion_matrix(Y_test, y_pred)
+
+    st.subheader("Model Performance Metrics:")
+    st.write(f"Accuracy: {accuracy:.2%}")
+    st.write("Classification Report:")
+    st.text(classification_rep)
+    st.write("Confusion Matrix:")
+    st.table(confusion_mat)
+
+    # ROC Curve
+    fpr, tpr, thresholds = roc_curve(Y_test, model.predict_proba(X_test)[:, 1])
+    roc_auc = auc(fpr, tpr)
+    st.subheader("Receiver Operating Characteristic (ROC) Curve:")
+    fig, ax = plt.subplots()
+    ax.plot(fpr, tpr, label=f'AUC = {roc_auc:.2f}')
+    ax.plot([0, 1], [0, 1], 'k--')
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.0])
+    ax.set_xlabel('False Positive Rate (FPR)')
+    ax.set_ylabel('True Positive Rate (TPR)')
+    ax.set_title('ROC Curve')
+    st.pyplot(fig)
 
 if selected  == "About":
     st.title("Customer Churn Prediction App")
@@ -82,6 +114,9 @@ elif selected == "Predict":
             input_data = [credit_score, geography, gender, age, tenure, balance, num_of_products, has_credit_card, is_active_member, estimated_salary]
             churn_prediction(input_data)
 
+elif selected == "Model":
+    model_evaluation(X_test, Y_test)
+
 elif selected == "Analysis":
     st.title("Analysis Dashboard")
 
@@ -120,6 +155,13 @@ elif selected == "Analysis":
     violin_fig = px.violin(df, x='Exited', y=violin_column,color_discrete_sequence=[violin_color], title=f'Violin Plot for {violin_column}')
     st.plotly_chart(violin_fig)
 
+    probas = model.predict_proba(X_test)[:, 1]
+    df_probs = pd.DataFrame({'Probability': probas, 'Actual': Y_test})
+
+    prob_dist_fig = px.histogram(df_probs, x='Probability', color='Actual',
+                                title='Probability Distribution Plot', marginal='box')
+    st.plotly_chart(prob_dist_fig)
+
     analysis_results.append(f"Bar Graph Analysis: {bar_column}")
     analysis_results.append(f"Pie Chart Analysis: {pie_column}")
     analysis_results.append(f"Histogram Analysis: {hist_column}")
@@ -130,6 +172,15 @@ elif selected == "Analysis":
     report_filename = "customer churn report.html"
     report.show_html(report_filename)
     analysis_results.append(f"CUSTOMER CHURN Analysis: {report_filename}")
+
+elif selected == "Feedback":
+    st.subheader("Feedback Section")
+    user_feedback = st.text_area("Share your feedback here:")
+    if st.button("Submit Feedback"):
+        if not user_feedback.strip():
+            st.error("Please provide feedback before submitting.")
+        else:
+            st.success("Thank you for your feedback! We appreciate it.")
 
 elif selected == "Report":
     generate_pdf_report(analysis_results, graphs=[])
