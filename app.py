@@ -14,12 +14,23 @@ from reportlab.lib.pagesizes import letter
 import sweetviz as sv
 from reportlab.pdfgen import canvas
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import sqlite3
 
 # Load the trained model
 model = pickle.load(open('pipe_model.sav', 'rb'))
 
+conn = sqlite3.connect('feedback section.db')
+c = conn.cursor()
+
+# Create table to store feedback if not exists
+c.execute('''CREATE TABLE IF NOT EXISTS feedback (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             feedback TEXT NOT NULL
+             )''')
+conn.commit()
+
 with st.sidebar:
-    selected = option_menu('Navigation',['About','Predict','Model','Analysis','Feedback','Report'],icons=["bi-info-circle","bi-bullseye","bi-bar-chart-fill","bi-clipboard-data","bi-textarea-resize","bi-file-pdf"] , default_index = 0)
+    selected = option_menu('Navigation',['About','Predict','Model','Analysis','Feedback','View Feedback','Report'],icons=["bi-info-circle","bi-bullseye","bi-bar-chart-fill","bi-clipboard-data","bi-textarea-resize",,"bi-view-list","bi-file-pdf"] , default_index = 0)
 
 df = pd.read_csv('Churn_Modelling.csv')
 X = df.drop(columns=['Exited'])
@@ -96,10 +107,10 @@ elif selected == "Predict":
 
     st.title('Customer Churn Predictor App')
 
-    credit_score = st.number_input('Credit Score')
+    credit_score = st.number_input('Credit Score', min_value=0, max_value=900)
     geography = st.selectbox('Geography', options=df['Geography'].unique())
     gender = st.selectbox('Gender', options=df['Gender'].unique())
-    age = st.number_input('Age')
+    age = st.number_input('Age', min_value=20, max_value=100)
     tenure = st.selectbox('Tenure', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     balance = st.number_input("Enter your balance : ")
     num_of_products = st.selectbox('Number of Products', [1, 2, 3, 4], index=0)
@@ -180,7 +191,24 @@ elif selected == "Feedback":
         if not user_feedback.strip():
             st.error("Please provide feedback before submitting.")
         else:
+            # Insert feedback into database
+            c.execute("INSERT INTO feedback (feedback) VALUES (?)", (user_feedback,))
+            conn.commit()
             st.success("Thank you for your feedback! We appreciate it.")
+
+elif selected == 'View Feedback':
+    st.title("View Feedback")
+    # Retrieve feedback from the database
+    c.execute("SELECT * FROM feedback")
+    feedback_data = c.fetchall()
+    if not feedback_data:
+        st.write("No feedback submitted yet.")
+    else:
+        st.write("Feedback submitted:")
+        feedback_table = [["ID", "Feedback"]]
+        for row in feedback_data:
+            feedback_table.append([row[0], row[1]])
+        st.table(feedback_table)
 
 elif selected == "Report":
     generate_pdf_report(analysis_results, graphs=[])
