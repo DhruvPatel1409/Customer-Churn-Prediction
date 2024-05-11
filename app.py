@@ -30,7 +30,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS feedback (
 conn.commit()
 
 with st.sidebar:
-    selected = option_menu('Navigation',['About','Predict','Model','Analysis','Feedback','View Feedback','Report'],icons=["bi-info-circle","bi-bullseye","bi-bar-chart-fill","bi-clipboard-data","bi-textarea-resize",,"bi-view-list","bi-file-pdf"] , default_index = 0)
+    selected = option_menu('Navigation',['About','Predict','Model','Analysis','Feedback','View Feedback','Report'],icons=["bi-info-circle","bi-bullseye","bi-bar-chart-fill","bi-clipboard-data","bi-textarea-resize","bi-view-list","bi-file-pdf"] , default_index = 0)
 
 df = pd.read_csv('Churn_Modelling.csv')
 X = df.drop(columns=['Exited'])
